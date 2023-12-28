@@ -1,4 +1,6 @@
+import { TSDDocument } from "./TSDDocument.js";
 import { TSDElement } from "./TSDElement.js";
+
 export const TSDParser = {
     TOKENS: {
         KEY: /^(?<val>\w+)\s*(?<removed>\[rem\]|\[removed\])?\s*:/,
@@ -10,8 +12,9 @@ export const TSDParser = {
         NULL: /^null/,
         TIMESTAMP: /^\|\s*(?<val>\d+)/,
     },
-    parse: function (str) {
-        let tokens = [];
+
+    parse: function (str: string): TSDElement {
+        let tokens: Array<{ type, groups }> = [];
         while (str.length != 0) {
             let { remainder, token } = this.parseToken(str);
             str = remainder;
@@ -19,25 +22,28 @@ export const TSDParser = {
         }
         return this.parseElement(tokens);
     },
-    parseElement: function (tokens) {
+
+    parseElement: function (tokens: Array<{ type, groups }>): TSDElement {
         let key = tokens.splice(0, 1)[0];
-        if (key.type != "KEY")
-            throw new SyntaxError("Unexpected Token: " + key.type + ".  Expected: KEY");
-        let value = null;
+        if (key.type != "KEY") throw new SyntaxError("Unexpected Token: " + key.type + ".  Expected: KEY");
+
+        let value: any = null;
         let valToken = tokens.splice(0, 1)[0];
         switch (valToken.type) {
             case "BRACKET_OPEN":
-                let elements = [];
+                let elements: Array<TSDElement> = [];
                 while (tokens[0].type != "BRACKET_CLOSE") {
                     console.log(JSON.parse(JSON.stringify(tokens)));
+
                     elements.push(this.parseElement(tokens));
                     if (tokens[0].type == "COMMA") {
-                        tokens.splice(0, 1);
+                        tokens.splice(0, 1)
                     }
                 }
                 value = elements;
+
                 if (tokens.splice(0, 1)[0].type != "BRACKET_CLOSE") {
-                    throw new SyntaxError("Unexpected Token: " + key.type + ".  Expected: BRACKET_CLOSE");
+                    throw new SyntaxError("Unexpected Token: " + key.type + ".  Expected: BRACKET_CLOSE")
                 }
                 break;
             case "STRING":
@@ -52,15 +58,19 @@ export const TSDParser = {
             default:
                 throw new SyntaxError("Unexpected Token: " + tokens.slice(0, 1)[0].type);
         }
-        let lastModified = null;
+
+        let lastModified: Date | null = null;
         if (tokens[0]?.type == "TIMESTAMP") {
-            lastModified = new Date(Number(tokens.splice(0, 1)[0].groups.val));
+            lastModified = new Date(Number(tokens.splice(0, 1)[0].groups.val))
         }
-        return new TSDElement(key.groups.val, value, key.groups.removed != undefined, lastModified);
+
+        return new TSDElement(key.groups.val, value, key.groups.removed != undefined, lastModified)
     },
-    parseToken: function (text) {
+
+    parseToken: function (text: string): { remainder, token: { type, groups } } {
         text = text.trim();
-        let token = null;
+        let token: { type, groups } | null = null;
+
         for (const key of Object.keys(this.TOKENS)) {
             const result = this.TOKENS[key].exec(text);
             if (result) {
@@ -71,7 +81,8 @@ export const TSDParser = {
         }
         if (!token) {
             throw new Error("Parse Error: Unknown token (" + text + ")");
+
         }
-        return { remainder: text, token: token };
+        return { remainder: text, token: token }
     }
-};
+}

@@ -1,7 +1,6 @@
-import { ParserHelper } from "./parser.js";
 import { TSDDocument } from "./TSDDocument.js";
 import { TSDElement, TSDType } from "./TSDElement.js";
-import { parse } from "./regexParser.js";
+import { TSDParser } from "./TSDParser.js";
 
 fetch("../Template.txt").then(v => v.text()).then(v => {
 
@@ -23,5 +22,6 @@ fetch("../Template.txt").then(v => v.text()).then(v => {
     console.log(b);
  */    
 
-    parse(v);
+    console.log(TSDParser.parse(v));
+    
 })

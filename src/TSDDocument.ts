@@ -1,5 +1,5 @@
 import { TSDElement } from "./TSDElement.js";
-import { TSDParser } from "./parser.js";
+import { TSDParser } from "./TSDParser.js";
 
 
 export class TSDDocument {
@@ -13,7 +13,7 @@ export class TSDDocument {
     parseFromString(str: string) {
         this.data = str;
         try {
-            this.root = (new TSDParser()).parseFromString(str);
+            //this.root = (new TSDParser()).parseFromString(str);
         } catch (error) {
             console.error("Error while parsing:", error);
         }

@@ -1,4 +1,3 @@
-import { ParserHelper } from "./parser.js";
 
 export enum TSDType {
     collection,

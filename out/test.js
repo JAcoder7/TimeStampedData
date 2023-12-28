@@ -1,4 +1,4 @@
-import { parse } from "./regexParser.js";
+import { TSDParser } from "./TSDParser.js";
 fetch("../Template.txt").then(v => v.text()).then(v => {
     /*     //ParserHelper.findClosingBracket(v, v.indexOf("{"))
         window["a"] = new TSDDocument(v);
@@ -17,5 +17,5 @@ fetch("../Template.txt").then(v => v.text()).then(v => {
         }
         console.log(b);
      */
-    parse(v);
+    console.log(TSDParser.parse(v));
 });
