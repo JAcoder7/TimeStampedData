@@ -1,11 +1,11 @@
 import { ParserHelper } from "./parser.js";
 import { TSDDocument } from "./TSDDocument.js";
 import { TSDElement, TSDType } from "./TSDElement.js";
-import { pa } from "./regexParser.js";
+import { parse } from "./regexParser.js";
 
 fetch("../Template.txt").then(v => v.text()).then(v => {
 
-    //ParserHelper.findClosingBracket(v, v.indexOf("{"))
+/*     //ParserHelper.findClosingBracket(v, v.indexOf("{"))
     window["a"] = new TSDDocument(v);
     console.time()
     let a = (window["a"]).toString();
@@ -21,5 +21,7 @@ fetch("../Template.txt").then(v => v.text()).then(v => {
         b.root.value = [new TSDElement("b", 12)];
     }
     console.log(b);
-    
+ */    
+
+    parse(v);
 })
