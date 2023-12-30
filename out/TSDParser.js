@@ -9,6 +9,7 @@ export const TSDParser = {
         NUMBER: /^(?<val>\d+(\.\d*)?)/,
         NULL: /^null/,
         TIMESTAMP: /^\|\s*(?<val>\d+)/,
+        REFERENCE: /^(?<val>(\.){0,2}(\/(\w+|\.\.))+)/,
     },
     parse: function (str) {
         let tokens = [];
@@ -17,6 +18,7 @@ export const TSDParser = {
             str = remainder;
             tokens.push(token);
         }
+        console.log(tokens);
         return this.parseElement(tokens);
     },
     parseElement: function (tokens) {
@@ -24,12 +26,12 @@ export const TSDParser = {
         if (key.type != "KEY")
             throw new SyntaxError("Unexpected Token: " + key.type + ".  Expected: KEY");
         let value = null;
+        let reference = null;
         let valToken = tokens.splice(0, 1)[0];
         switch (valToken.type) {
             case "BRACKET_OPEN":
                 let elements = [];
                 while (tokens[0].type != "BRACKET_CLOSE") {
-                    console.log(JSON.parse(JSON.stringify(tokens)));
                     elements.push(this.parseElement(tokens));
                     if (tokens[0].type == "COMMA") {
                         tokens.splice(0, 1);
@@ -49,14 +51,21 @@ export const TSDParser = {
             case "NULL":
                 value = null;
                 break;
+            case "REFERENCE":
+                reference = valToken.groups.val;
+                break;
             default:
-                throw new SyntaxError("Unexpected Token: " + tokens.slice(0, 1)[0].type);
+                throw new SyntaxError("Unexpected Token: " + valToken.type);
         }
         let lastModified = null;
         if (tokens[0]?.type == "TIMESTAMP") {
             lastModified = new Date(Number(tokens.splice(0, 1)[0].groups.val));
         }
-        return new TSDElement(key.groups.val, value, key.groups.removed != undefined, lastModified);
+        let newElement = new TSDElement(key.groups.val, value, key.groups.removed != undefined, lastModified);
+        if (reference) {
+            newElement.setReference(reference);
+        }
+        return newElement;
     },
     parseToken: function (text) {
         text = text.trim();

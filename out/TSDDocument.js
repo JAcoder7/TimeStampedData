@@ -1,3 +1,4 @@
+import { TSDParser } from "./TSDParser.js";
 export class TSDDocument {
     data = null;
     root = null;
@@ -6,12 +7,7 @@ export class TSDDocument {
     }
     parseFromString(str) {
         this.data = str;
-        try {
-            //this.root = (new TSDParser()).parseFromString(str);
-        }
-        catch (error) {
-            console.error("Error while parsing:", error);
-        }
+        this.root = TSDParser.parse(str);
     }
     toString(compact = false) {
         return this.root?.toString(compact);

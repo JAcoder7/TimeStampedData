@@ -1,38 +1,57 @@
+/**
+ * Type of a TSD-Element
+ * [collection, string, number, null, reference]
+ */
 export var TSDType;
 (function (TSDType) {
     TSDType[TSDType["collection"] = 0] = "collection";
     TSDType[TSDType["string"] = 1] = "string";
     TSDType[TSDType["number"] = 2] = "number";
     TSDType[TSDType["null"] = 3] = "null";
+    TSDType[TSDType["reference"] = 4] = "reference";
 })(TSDType || (TSDType = {}));
 export class TSDElement {
     key;
     _value = null;
+    _reference = null;
     removed;
     parent;
     lastModified;
     constructor(key, value, removed = false, lastModified = null, parent = null) {
         this.key = key;
-        this._value = value;
+        this.value = value;
         this.lastModified = lastModified;
         this.removed = removed;
         this.parent = parent;
     }
     set value(v) {
-        if (v?.constructor == new TSDElement("", "").constructor) {
-            // TODO: add reference
-            throw new Error("References not yet supported");
+        if (v?.constructor == this.constructor) {
+            if (v.root != this.root) {
+                throw new Error("Reference element does not share the same root");
+            }
+            this.setReference(this.getRelativePath(v));
+            return;
         }
         if (v?.constructor == ([]).constructor) {
-            // TODO: check for dublicates
+            this._value = [];
             v.forEach(element => {
-                element.parent = this;
+                if (this._value.filter(e => e.key == element.key).length == 0) {
+                    element.parent = this;
+                    this._value.push(element);
+                }
             });
+            return;
         }
         this._value = v;
         this.lastModified = new Date();
     }
     get value() {
+        if (this._reference) {
+            let ref = this.query(this._reference)?.value;
+            if (!ref)
+                console.error("Invalid reference:", this._reference);
+            return ref || null;
+        }
         return this._value;
     }
     addElement(element) {
@@ -49,6 +68,11 @@ export class TSDElement {
             throw new Error("Elements can only be added to collections");
         }
     }
+    setReference(path) {
+        this._value = null;
+        this._reference = path;
+        this.lastModified = new Date();
+    }
     find(predicate) {
         if (this.getType() == TSDType.collection) {
             return Object.values(this.value).find(predicate);
@@ -58,6 +82,9 @@ export class TSDElement {
         }
     }
     getType() {
+        if (this._reference) {
+            return TSDType.reference;
+        }
         switch (this._value?.constructor) {
             case "".constructor:
                 return TSDType.string;
@@ -97,6 +124,55 @@ export class TSDElement {
         }
         return currentElem;
     }
+    query(path) {
+        if (!/^(?<val>(\.){0,2}(\/(\w+|\.\.))+)$/.test(path)) {
+            throw new SyntaxError("Invalid path:" + path);
+        }
+        let segments = path.split("/");
+        if (segments[1] == "") {
+            return this;
+        }
+        let searchOrigin;
+        if (segments[0] == "") {
+            searchOrigin = this.root;
+        }
+        else if (segments[0] == "..") {
+            if (!this.parent)
+                return null;
+            searchOrigin = this.parent;
+        }
+        else {
+            searchOrigin = this;
+        }
+        let result;
+        if (segments[1] == "..") {
+            result = searchOrigin.parent;
+        }
+        else {
+            if (searchOrigin.getType() != TSDType.collection) {
+                return null;
+            }
+            result = searchOrigin.find(v => v.key == segments[1]) || null;
+        }
+        if (segments.length > 2) {
+            return result?.query("./" + segments.slice(2).join("/")) || null;
+        }
+        else {
+            return result;
+        }
+    }
+    /**
+     * get the relative path from this element to an other element
+     */
+    getRelativePath(other) {
+        let path = other.getPath();
+        let ownPath = this.getPath();
+        let i = 0;
+        while (i < path.length && i < ownPath.length && path[i] === ownPath[i]) {
+            i++;
+        }
+        return ownPath.substring(i).split("/").map(_ => "..").join("/") + "/" + path.substring(i);
+    }
     getPath() {
         let currentPath = "/" + this.key;
         let currentElem = this;
@@ -135,6 +211,9 @@ export class TSDElement {
             default:
                 throw new Error(`type not supported: ${this._value}`);
                 break;
+        }
+        if (this._reference) {
+            valueStr = this._reference;
         }
         let param = this.removed ? "[rem]" : "";
         if (compact) {

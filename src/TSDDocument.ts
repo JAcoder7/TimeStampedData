@@ -12,11 +12,7 @@ export class TSDDocument {
 
     parseFromString(str: string) {
         this.data = str;
-        try {
-            //this.root = (new TSDParser()).parseFromString(str);
-        } catch (error) {
-            console.error("Error while parsing:", error);
-        }
+        this.root = TSDParser.parse(str);
     }
 
     toString(compact = false) {
