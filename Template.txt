@@ -1,22 +1,28 @@
 root: {
-    todos: {
-        1: {
-            text: "testTest" | 102947582,
-            users: {
-                0:1 | 3523523467,
-            } | 0,
-            test: ../../../users/2/name
-        } | 1234567876543,
-    },
-
-    users: {
-        1: {
-            name:"TestFirstname"|14232,
-            lastName:"TestLastName"|2141,
-        },
-        2[rem]: {
-            name:"TestFirstname"|14232,
-            lastName:"TestLastName"|2141,
+    todoLists: {
+        ds998146: {
+            todos: {
+                0: {
+                    description: "Task 1" | 1704130792494
+                } | 1704130749583,
+                1: {
+                    description: "Task 2"
+                } | 1704130750483
+            },
+            linkedUsers: {  
+                af998171: /users/1
+            }
         }
     }
-}
+    
+    users: {
+        1: {
+            name: "FirstName" | 1704130853795,
+            lastName: "LastName" | 1704130938594
+        } ,
+        2[rem]: {
+            name: "Firstname2",
+            lastName: "LastName" | 1704195674893
+        } 
+    } 
+} 

@@ -1,7 +1,7 @@
 import { TSDElement } from "./TSDElement.js";
 export const TSDParser = {
     TOKENS: {
-        KEY: /^(?<val>\w+)\s*(?<removed>\[rem\]|\[removed\])?\s*:/,
+        KEY: /^(?<val>[\w-]+)\s*(?<removed>\[rem\]|\[removed\])?\s*:/,
         BRACKET_OPEN: /^{/,
         BRACKET_CLOSE: /^}/,
         COMMA: /^,/,
@@ -18,7 +18,6 @@ export const TSDParser = {
             str = remainder;
             tokens.push(token);
         }
-        console.log(tokens);
         return this.parseElement(tokens);
     },
     parseElement: function (tokens) {
@@ -64,6 +63,7 @@ export const TSDParser = {
         let newElement = new TSDElement(key.groups.val, value, key.groups.removed != undefined, lastModified);
         if (reference) {
             newElement.setReference(reference);
+            newElement.lastModified = lastModified;
         }
         return newElement;
     },

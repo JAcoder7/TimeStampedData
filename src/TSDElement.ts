@@ -36,6 +36,7 @@ export class TSDElement {
                 throw new Error("Reference element does not share the same root");
             }
 
+            this.lastModified = new Date();
             this.setReference(this.getRelativePath(v as TSDElement))
             return;
         }
@@ -48,7 +49,9 @@ export class TSDElement {
                     (this._value as Array<TSDElement>).push(element);
                 }
             });
-            return
+
+            this.lastModified = new Date();
+            return;
         }
 
         this._value = v as TSDElementValueType;
@@ -84,14 +87,31 @@ export class TSDElement {
         this.lastModified = new Date();
     }
 
-    public find(predicate: (value: TSDElement, index: number, obj: TSDElement[]) => boolean): TSDElement | undefined {
+    public getKeys(): Array<string> {
         if (this.getType() == TSDType.collection) {
-            return Object.values(this.value as TSDElement[]).find(predicate);
+            return (this.value as Array<TSDElement>).map(e => e.key)
         } else {
-            throw new Error("Cant call find on a collection");
+            throw new Error("'getKeys()' is only available on a collection");
         }
     }
 
+    /**
+     * Returns the value of the first element in the collection of this elements value where predicate is true, and undefined otherwise.
+     * @param predicate find calls predicate once for each element of the array, in ascending order, until it finds one where predicate returns true. If such an element is found, find immediately returns that element value. Otherwise, find returns undefined.
+     * @returns 
+     */
+    public find(predicate: (value: TSDElement, index: number, obj: TSDElement[]) => boolean): TSDElement | undefined {
+        if (this.getType() == TSDType.collection) {
+            return (this.value as TSDElement[]).find(predicate);
+        } else {
+            throw new Error("'find()' is only available on a collection");
+        }
+    }
+
+    /**
+     * 
+     * @returns The type of this elements value
+     */
     public getType(): TSDType {
         if (this._reference) {
             return TSDType.reference;
@@ -130,6 +150,10 @@ export class TSDElement {
         return this.findRoot()
     }
 
+    /**
+     * 
+     * @returns The root of this element
+     */
     public findRoot(): TSDElement {
         let currentElem: TSDElement | null = this;
         while (currentElem.parent != null) {
@@ -178,7 +202,7 @@ export class TSDElement {
     /**
      * get the relative path from this element to an other element
      */
-    public getRelativePath(other: TSDElement) {
+    public getRelativePath(other: TSDElement):string {
         let path = other.getPath();
         let ownPath = this.getPath();
         let i = 0;
@@ -188,6 +212,10 @@ export class TSDElement {
         return ownPath.substring(i).split("/").map(_ => "..").join("/") + "/" + path.substring(i)
     }
 
+    /**
+     * 
+     * @returns The path from the root to this element
+     */
     public getPath(): string {
         let currentPath = "/" + this.key;
         let currentElem: TSDElement | null = this;
@@ -202,6 +230,41 @@ export class TSDElement {
         this.removed = true;
     }
 
+    merge(other: TSDElement) {
+        if (this.lastModified != null && other.lastModified == null) {
+            return;
+        }
+        if (this.lastModified == null && other.lastModified != null) {
+            this.value = other._value;
+            this._reference = other._reference;
+            this.lastModified = other.lastModified
+            return;
+        }
+        
+        if ((this.lastModified == null && other.lastModified == null) || (this.lastModified as Date).getTime() === (other.lastModified as Date).getTime()) {
+            if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
+                (other._value as Array<TSDElement>).forEach(element => {
+                    if (!this.getKeys().includes(element.key)) {
+                        this.addElement(element)
+                    } else {
+                        this.query(`./${element.key}`)?.merge(element);
+                    }
+                });
+            }
+            return;
+        }
+        if ((this.lastModified as Date).getTime() > (other.lastModified as Date).getTime()) {
+            return;
+        }
+        if ((this.lastModified as Date).getTime() < (other.lastModified as Date).getTime()) {
+            this.value = other._value;
+            this._reference = other._reference;
+            this.lastModified = other.lastModified
+            return;
+        }
+        
+    }
+
     toString(compact: boolean = false) {
         let keyStr = this.key;
         let valueStr = "null";
@@ -211,9 +274,9 @@ export class TSDElement {
                 break;
             case [].constructor:
                 if (compact) {
-                    valueStr = `{${(this._value as TSDElement[]).map(v => (v as any).toString(compact)).join(",")}}`;
+                    valueStr = `{${(this._value as TSDElement[]).map(e => e.toString(compact)).join(",")}}`;
                 } else {
-                    valueStr = `{\n${(this._value as TSDElement[]).map(v => "    " + (v as any).toString(compact).split("\n").join("\n    ")).join(", \n")}\n}`;
+                    valueStr = `{\n${(this._value as TSDElement[]).map(e => `    ${e.toString(compact).split("\n").join("\n    ")}`).join(",\n")}\n}`;
                 }
                 break;
             case (0).constructor:

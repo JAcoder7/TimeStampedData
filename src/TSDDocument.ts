@@ -18,4 +18,15 @@ export class TSDDocument {
     toString(compact = false) {
         return this.root?.toString(compact);
     }
+
+    query(path: string) {
+        return this.root?.query(path);
+    }
+
+    /**
+     * query
+     */
+    q(path:string) {
+        return this.root?.query(path);
+    }
 }

@@ -12,4 +12,13 @@ export class TSDDocument {
     toString(compact = false) {
         return this.root?.toString(compact);
     }
+    query(path) {
+        return this.root?.query(path);
+    }
+    /**
+     * query
+     */
+    q(path) {
+        return this.root?.query(path);
+    }
 }

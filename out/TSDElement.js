@@ -29,6 +29,7 @@ export class TSDElement {
             if (v.root != this.root) {
                 throw new Error("Reference element does not share the same root");
             }
+            this.lastModified = new Date();
             this.setReference(this.getRelativePath(v));
             return;
         }
@@ -40,6 +41,7 @@ export class TSDElement {
                     this._value.push(element);
                 }
             });
+            this.lastModified = new Date();
             return;
         }
         this._value = v;
@@ -73,14 +75,31 @@ export class TSDElement {
         this._reference = path;
         this.lastModified = new Date();
     }
-    find(predicate) {
+    getKeys() {
         if (this.getType() == TSDType.collection) {
-            return Object.values(this.value).find(predicate);
+            return this.value.map(e => e.key);
         }
         else {
-            throw new Error("Cant call find on a collection");
+            throw new Error("'getKeys()' is only available on a collection");
         }
     }
+    /**
+     * Returns the value of the first element in the collection of this elements value where predicate is true, and undefined otherwise.
+     * @param predicate find calls predicate once for each element of the array, in ascending order, until it finds one where predicate returns true. If such an element is found, find immediately returns that element value. Otherwise, find returns undefined.
+     * @returns
+     */
+    find(predicate) {
+        if (this.getType() == TSDType.collection) {
+            return this.value.find(predicate);
+        }
+        else {
+            throw new Error("'find()' is only available on a collection");
+        }
+    }
+    /**
+     *
+     * @returns The type of this elements value
+     */
     getType() {
         if (this._reference) {
             return TSDType.reference;
@@ -117,6 +136,10 @@ export class TSDElement {
     get root() {
         return this.findRoot();
     }
+    /**
+     *
+     * @returns The root of this element
+     */
     findRoot() {
         let currentElem = this;
         while (currentElem.parent != null) {
@@ -173,6 +196,10 @@ export class TSDElement {
         }
         return ownPath.substring(i).split("/").map(_ => "..").join("/") + "/" + path.substring(i);
     }
+    /**
+     *
+     * @returns The path from the root to this element
+     */
     getPath() {
         let currentPath = "/" + this.key;
         let currentElem = this;
@@ -185,6 +212,39 @@ export class TSDElement {
     remove() {
         this.removed = true;
     }
+    merge(other) {
+        if (this.lastModified != null && other.lastModified == null) {
+            return;
+        }
+        if (this.lastModified == null && other.lastModified != null) {
+            this.value = other._value;
+            this._reference = other._reference;
+            this.lastModified = other.lastModified;
+            return;
+        }
+        if ((this.lastModified == null && other.lastModified == null) || this.lastModified.getTime() === other.lastModified.getTime()) {
+            if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
+                other._value.forEach(element => {
+                    if (!this.getKeys().includes(element.key)) {
+                        this.addElement(element);
+                    }
+                    else {
+                        this.query(`./${element.key}`)?.merge(element);
+                    }
+                });
+            }
+            return;
+        }
+        if (this.lastModified.getTime() > other.lastModified.getTime()) {
+            return;
+        }
+        if (this.lastModified.getTime() < other.lastModified.getTime()) {
+            this.value = other._value;
+            this._reference = other._reference;
+            this.lastModified = other.lastModified;
+            return;
+        }
+    }
     toString(compact = false) {
         let keyStr = this.key;
         let valueStr = "null";
@@ -194,10 +254,10 @@ export class TSDElement {
                 break;
             case [].constructor:
                 if (compact) {
-                    valueStr = `{${this._value.map(v => v.toString(compact)).join(",")}}`;
+                    valueStr = `{${this._value.map(e => e.toString(compact)).join(",")}}`;
                 }
                 else {
-                    valueStr = `{\n${this._value.map(v => "    " + v.toString(compact).split("\n").join("\n    ")).join(", \n")}\n}`;
+                    valueStr = `{\n${this._value.map(e => `    ${e.toString(compact).split("\n").join("\n    ")}`).join(",\n")}\n}`;
                 }
                 break;
             case (0).constructor:
