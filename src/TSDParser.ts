@@ -2,12 +2,13 @@ import { TSDElement } from "./TSDElement.js";
 
 export const TSDParser = {
     TOKENS: {
-        KEY: /^(?<val>[\w-]+)\s*(?<removed>\[rem\]|\[removed\])?\s*:/,
+        KEY: /^"(?<val>[^"]*)"\s*(?<removed>\[rem\]|\[removed\])?\s*:/,
         BRACKET_OPEN: /^{/,
         BRACKET_CLOSE: /^}/,
         COMMA: /^,/,
         STRING: /^"(?<val>[^"]*)"/,
         NUMBER: /^(?<val>\d+(\.\d*)?)/,
+        BOOLEAN: /^(?<val>true|false)/,
         NULL: /^null/,
         TIMESTAMP: /^\|\s*(?<val>\d+)/,
         REFERENCE: /^(?<val>(\.){0,2}(\/(\w+|\.\.))+)/,
@@ -51,6 +52,9 @@ export const TSDParser = {
                 break;
             case "NUMBER":
                 value = Number(valToken.groups.val);
+                break;
+            case "BOOLEAN":
+                value = valToken.groups.val == "true";
                 break;
             case "NULL":
                 value = null;

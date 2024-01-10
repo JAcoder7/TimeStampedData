@@ -6,14 +6,15 @@ export enum TSDType {
     collection,
     string,
     number,
+    boolean,
     null,
     reference,
 }
-type TSDElementValueType = TSDElement[] | string | number | null;
+type TSDElementValueType = TSDElement[] | string | number | boolean | null;
 
 export class TSDElement {
 
-    private _key: string = "";
+    private key: string;
     private _value: TSDElementValueType = null;
     private _reference: string | null = null;
     public removed: boolean;
@@ -32,20 +33,13 @@ export class TSDElement {
         this.parent = parent;
     }
 
-    public set key(v: string) {
-        if (/^[\w-]+$/.test(v)) {
-            this._key = v;
-        } else {
-            throw new Error("Invalid key");
-        }
-    }
-
-    public get key(): string {
-        return this._key
-    }
 
 
     public set value(v: TSDElement | TSDElementValueType) {
+        this.setValue(v);
+    }
+
+    public setValue(v: TSDElement | TSDElementValueType, doesTriggerChangeEvent = true) {
         if (v?.constructor == this.constructor) {
             if ((v as TSDElement).root != this.root) {
                 throw new Error("Reference element does not share the same root");
@@ -53,10 +47,7 @@ export class TSDElement {
 
             this.lastModified = new Date();
             this.setReference(this.getRelativePath(v as TSDElement));
-            this.propagateChange();
-            if (this.onChange) {
-                this.onChange();
-            }
+            if (doesTriggerChangeEvent) this.triggerChangeEvent();
             return;
         }
 
@@ -70,20 +61,16 @@ export class TSDElement {
             });
 
             this.lastModified = new Date();
-            this.propagateChange();
-            if (this.onChange) {
-                this.onChange();
-            }
+            if (doesTriggerChangeEvent) this.triggerChangeEvent();
+
             return;
         }
 
         this._value = v as TSDElementValueType;
         this.lastModified = new Date();
-        this.propagateChange();
-        if (this.onChange) {
-            this.onChange();
-        }
-}
+
+        if (doesTriggerChangeEvent) this.triggerChangeEvent();
+    }
 
     public get value(): TSDElementValueType {
         if (this._reference) {
@@ -92,14 +79,18 @@ export class TSDElement {
 
             return ref || null;
         }
+        if (this.getType() == TSDType.collection) {
+            return (this._value as TSDElement[]).filter(e => !e.removed)
+        }
         return this._value;
     }
 
-    public addElement(element: TSDElement) {
+    public addElement(element: TSDElement, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
             if (!Object.keys(this._value as TSDElement[]).includes(element.key)) {
                 element.parent = this;
                 (this._value as TSDElement[]).push(element);
+                if (doesTriggerChangeEvent) this.triggerChangeEvent();
             } else {
                 throw new Error(`An element with the key '${element.key}' already exists in the collection`);
             }
@@ -108,10 +99,11 @@ export class TSDElement {
         }
     }
 
-    public setReference(path: string) {
+    public setReference(path: string, doesTriggerChangeEvent = true) {
         this._value = null;
         this._reference = path;
         this.lastModified = new Date();
+        if (doesTriggerChangeEvent) this.triggerChangeEvent();
     }
 
     public getKeys(): Array<string> {
@@ -148,6 +140,8 @@ export class TSDElement {
                 return TSDType.string;
             case (0).constructor:
                 return TSDType.number
+            case true.constructor:
+                return TSDType.boolean
             case [].constructor:
                 return TSDType.collection;
             case undefined:
@@ -244,11 +238,14 @@ export class TSDElement {
      * @returns The path from the root to this element
      */
     public getPath(): string {
-        let currentPath = "/" + this.key;
+        if (this.parent == null) {
+            return "/"
+        }
+        let currentPath = "";
         let currentElem: TSDElement | null = this;
         while (currentElem.parent != null) {
-            currentElem = currentElem.parent;
             currentPath = "/" + currentElem.key + currentPath;
+            currentElem = currentElem.parent;
         }
         return currentPath;
     }
@@ -264,27 +261,38 @@ export class TSDElement {
         this.parent?.propagateChange();
     }
 
+    triggerChangeEvent() {
+        this.propagateChange();
+        if (this.onChange) {
+            this.onChange();
+        }
+    }
+
     /**
      * 
      * @returns Boolean which indicates if changes to this object were made
      */
     merge(other: TSDElement): boolean {
+        // Only this timestamp
         if (this.lastModified != null && other.lastModified == null) {
             return false;
         }
+
+        // Only other timestamp
         if (this.lastModified == null && other.lastModified != null) {
-            this.value = other._value;
+            this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified
             return true;
         }
 
+        // Timestamps equal
         if ((this.lastModified == null && other.lastModified == null) || (this.lastModified as Date).getTime() === (other.lastModified as Date).getTime()) {
             let changesMade = false;
             if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
                 (other._value as Array<TSDElement>).forEach(element => {
                     if (!this.getKeys().includes(element.key)) {
-                        this.addElement(element);
+                        this.addElement(element, false);
                     } else {
                         changesMade = changesMade || (this.query(`./${element.key}`)?.merge(element) || false);
                     }
@@ -292,11 +300,13 @@ export class TSDElement {
             }
             return changesMade;
         }
+        // This timestamp greater
         if ((this.lastModified as Date).getTime() > (other.lastModified as Date).getTime()) {
             return false;
         }
+        // Other timestamp greater
         if ((this.lastModified as Date).getTime() < (other.lastModified as Date).getTime()) {
-            this.value = other._value;
+            this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified
             return true;
@@ -305,9 +315,9 @@ export class TSDElement {
     }
 
     toString(compact: boolean = false) {
-        let keyStr = this.key;
+        let keyStr = `"${this.key}"`;
         let valueStr = "null";
-        switch (this._value?.constructor) {
+        switch (this._value?.constructor) { // TODO: replace with this.getType()
             case "".constructor:
                 valueStr = `"${this._value as string}"`;
                 break;
@@ -319,6 +329,9 @@ export class TSDElement {
                 }
                 break;
             case (0).constructor:
+                valueStr = `${this._value}`;
+                break;
+            case true.constructor:
                 valueStr = `${this._value}`;
                 break;
             case undefined:
