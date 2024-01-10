@@ -33,3 +33,11 @@ root: {
     } 
 } 
 ```
+
+## Query
+Example:
+```
+    todoLists.query("./ds998146")
+    todoLists.query("../users")
+    todoLists.query("/users")
+```

@@ -3,7 +3,7 @@ import { TSDParser } from "./TSDParser.js";
 
 
 export class TSDDocument {
-    private data: string | null = null;
+    private dataStr: string | null = null;
     root: TSDElement | null = null;
 
     constructor(str: string) {
@@ -11,7 +11,7 @@ export class TSDDocument {
     }
 
     parseFromString(str: string) {
-        this.data = str;
+        this.dataStr = str;
         this.root = TSDParser.parse(str);
     }
 
@@ -24,7 +24,7 @@ export class TSDDocument {
     }
 
     /**
-     * query
+     * same as .query()
      */
     q(path:string) {
         return this.root?.query(path);

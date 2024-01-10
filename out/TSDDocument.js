@@ -1,12 +1,12 @@
 import { TSDParser } from "./TSDParser.js";
 export class TSDDocument {
-    data = null;
+    dataStr = null;
     root = null;
     constructor(str) {
         this.parseFromString(str);
     }
     parseFromString(str) {
-        this.data = str;
+        this.dataStr = str;
         this.root = TSDParser.parse(str);
     }
     toString(compact = false) {
@@ -16,7 +16,7 @@ export class TSDDocument {
         return this.root?.query(path);
     }
     /**
-     * query
+     * same as .query()
      */
     q(path) {
         return this.root?.query(path);

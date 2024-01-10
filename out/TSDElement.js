@@ -11,18 +11,30 @@ export var TSDType;
     TSDType[TSDType["reference"] = 4] = "reference";
 })(TSDType || (TSDType = {}));
 export class TSDElement {
-    key;
+    _key = "";
     _value = null;
     _reference = null;
     removed;
     parent;
     lastModified;
+    onChange = null;
     constructor(key, value, removed = false, lastModified = null, parent = null) {
         this.key = key;
         this.value = value;
         this.lastModified = lastModified;
         this.removed = removed;
         this.parent = parent;
+    }
+    set key(v) {
+        if (/^[\w-]+$/.test(v)) {
+            this._key = v;
+        }
+        else {
+            throw new Error("Invalid key");
+        }
+    }
+    get key() {
+        return this._key;
     }
     set value(v) {
         if (v?.constructor == this.constructor) {
@@ -31,6 +43,10 @@ export class TSDElement {
             }
             this.lastModified = new Date();
             this.setReference(this.getRelativePath(v));
+            this.propagateChange();
+            if (this.onChange) {
+                this.onChange();
+            }
             return;
         }
         if (v?.constructor == ([]).constructor) {
@@ -42,10 +58,18 @@ export class TSDElement {
                 }
             });
             this.lastModified = new Date();
+            this.propagateChange();
+            if (this.onChange) {
+                this.onChange();
+            }
             return;
         }
         this._value = v;
         this.lastModified = new Date();
+        this.propagateChange();
+        if (this.onChange) {
+            this.onChange();
+        }
     }
     get value() {
         if (this._reference) {
@@ -212,38 +236,50 @@ export class TSDElement {
     remove() {
         this.removed = true;
     }
+    propagateChange() {
+        if (this.parent?.onChange) {
+            this.parent?.onChange();
+        }
+        this.parent?.propagateChange();
+    }
+    /**
+     *
+     * @returns Boolean which indicates if changes to this object were made
+     */
     merge(other) {
         if (this.lastModified != null && other.lastModified == null) {
-            return;
+            return false;
         }
         if (this.lastModified == null && other.lastModified != null) {
             this.value = other._value;
             this._reference = other._reference;
             this.lastModified = other.lastModified;
-            return;
+            return true;
         }
         if ((this.lastModified == null && other.lastModified == null) || this.lastModified.getTime() === other.lastModified.getTime()) {
+            let changesMade = false;
             if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
                 other._value.forEach(element => {
                     if (!this.getKeys().includes(element.key)) {
                         this.addElement(element);
                     }
                     else {
-                        this.query(`./${element.key}`)?.merge(element);
+                        changesMade = changesMade || (this.query(`./${element.key}`)?.merge(element) || false);
                     }
                 });
             }
-            return;
+            return changesMade;
         }
         if (this.lastModified.getTime() > other.lastModified.getTime()) {
-            return;
+            return false;
         }
         if (this.lastModified.getTime() < other.lastModified.getTime()) {
             this.value = other._value;
             this._reference = other._reference;
             this.lastModified = other.lastModified;
-            return;
+            return true;
         }
+        return false;
     }
     toString(compact = false) {
         let keyStr = this.key;
