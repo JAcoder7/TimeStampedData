@@ -1,4 +1,5 @@
 import { TSDDocument } from "../src/TSDDocument.js";
+import { TSDParser } from "../src/TSDParser.js";
 fetch("../Template.tsd").then(v => v.text()).then(v => {
     /*     //ParserHelper.findClosingBracket(v, v.indexOf("{"))
         window["a"] = new TSDDocument(v);
@@ -22,6 +23,7 @@ fetch("../Template.tsd").then(v => v.text()).then(v => {
     if (a.root)
         a.root.onChange = v => document.body.innerHTML = "<pre>" + a.toString(false) + "</pre><br><pre>" + JSON.stringify(a.root?.getTypeTree()) + "</pre>";
     console.log(a);
+    console.assert(TSDParser.parse(a.toString()).toString() == a.toString(), "AAAAAAAAAAAA");
     console.log(a.root?.getTypeTree());
     window["a"] = a;
 });

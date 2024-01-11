@@ -27,6 +27,7 @@ fetch("../Template.tsd").then(v => v.text()).then(v => {
     document.body.innerHTML = "<pre>" + a.toString(false) + "</pre><br><pre>" + JSON.stringify(a.root?.getTypeTree()) + "</pre>";
     if (a.root) a.root.onChange = v =>     document.body.innerHTML = "<pre>" + a.toString(false) + "</pre><br><pre>" + JSON.stringify(a.root?.getTypeTree()) + "</pre>";
     console.log(a);
+    console.assert(TSDParser.parse(a.toString() as string).toString() == a.toString(), "AAAAAAAAAAAA");
     console.log(a.root?.getTypeTree());
 
     window["a"] = a;

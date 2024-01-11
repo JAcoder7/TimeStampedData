@@ -35,6 +35,7 @@ export class TSDElement {
                 throw new Error("Reference element does not share the same root");
             }
             this.lastModified = new Date();
+            console.log(this.getRelativePath(v));
             this.setReference(this.getRelativePath(v));
             if (doesTriggerChangeEvent)
                 this.triggerChangeEvent();
@@ -72,7 +73,7 @@ export class TSDElement {
     }
     addElement(element, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
-            if (!Object.keys(this._value).includes(element.key)) {
+            if (!Object.keys(this._value).includes(element.key)) { // TODO: replace if element with the same key is removed
                 element.parent = this;
                 this._value.push(element);
                 if (doesTriggerChangeEvent)
@@ -87,11 +88,13 @@ export class TSDElement {
         }
     }
     setReference(path, doesTriggerChangeEvent = true) {
-        this._value = null;
-        this._reference = path;
-        this.lastModified = new Date();
-        if (doesTriggerChangeEvent)
-            this.triggerChangeEvent();
+        if (/^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)$/u.test(path)) {
+            this._value = null;
+            this._reference = path;
+            this.lastModified = new Date();
+            if (doesTriggerChangeEvent)
+                this.triggerChangeEvent();
+        }
     }
     getKeys() {
         if (this.getType() == TSDType.collection) {
@@ -168,10 +171,10 @@ export class TSDElement {
         return currentElem;
     }
     query(path) {
-        if (!/^(?<val>(\.){0,2}(\/(\w+|\.\.))+)$/.test(path)) {
+        if (!/^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)$/u.test(path)) {
             throw new SyntaxError("Invalid path:" + path);
         }
-        let segments = path.split("/");
+        let segments = path.split(/(?<!\\)\//g);
         if (segments[1] == "") {
             return this;
         }
@@ -195,7 +198,7 @@ export class TSDElement {
             if (searchOrigin.getType() != TSDType.collection) {
                 return null;
             }
-            result = searchOrigin.find(v => v.key == segments[1]) || null;
+            result = searchOrigin.find(v => v.key == segments[1].replace(/\\(.)/gu, "$1")) || null;
         }
         if (segments.length > 2) {
             return result?.query("./" + segments.slice(2).join("/")) || null;
@@ -208,13 +211,13 @@ export class TSDElement {
      * get the relative path from this element to an other element
      */
     getRelativePath(other) {
-        let path = other.getPath();
-        let ownPath = this.getPath();
+        let path = other.getPath().split(/(?<!\\)\//g);
+        let ownPath = this.getPath().split(/(?<!\\)\//g);
         let i = 0;
         while (i < path.length && i < ownPath.length && path[i] === ownPath[i]) {
             i++;
         }
-        return ownPath.substring(i).split("/").map(_ => "..").join("/") + "/" + path.substring(i);
+        return ownPath.slice(i).map(() => "..").join("/") + "/" + path.slice(i).join("/");
     }
     /**
      *
@@ -227,7 +230,7 @@ export class TSDElement {
         let currentPath = "";
         let currentElem = this;
         while (currentElem.parent != null) {
-            currentPath = "/" + currentElem.key + currentPath;
+            currentPath = "/" + currentElem.key.replace(/[^\p{Alphabetic}\d-]/gu, "\\$&") + currentPath;
             currentElem = currentElem.parent;
         }
         return currentPath;
@@ -292,7 +295,7 @@ export class TSDElement {
         return false;
     }
     toString(compact = false) {
-        let keyStr = `"${this.key}"`;
+        let keyStr = this.key.replace(/[^\p{Alphabetic}\d-]/gu, "\\$&");
         let valueStr = "null";
         switch (this._value?.constructor) { // TODO: replace with this.getType()
             case "".constructor:

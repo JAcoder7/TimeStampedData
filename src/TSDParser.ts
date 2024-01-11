@@ -2,7 +2,8 @@ import { TSDElement } from "./TSDElement.js";
 
 export const TSDParser = {
     TOKENS: {
-        KEY: /^"(?<val>[^"]*)"\s*(?<removed>\[rem\]|\[removed\])?\s*:/,
+        // note: /(?:[\p{Alphabetic}\d-]|\\.)+/u matches a key: any non alphabetic character ("-" neither) has to be escaped: "\:", "\/", "\["
+        KEY: /^(?<val>(?:[\p{Alphabetic}\d-]|\\.)+)\s*(?<removed>\[rem\]|\[removed\])?\s*:/u,
         BRACKET_OPEN: /^{/,
         BRACKET_CLOSE: /^}/,
         COMMA: /^,/,
@@ -11,7 +12,7 @@ export const TSDParser = {
         BOOLEAN: /^(?<val>true|false)/,
         NULL: /^null/,
         TIMESTAMP: /^\|\s*(?<val>\d+)/,
-        REFERENCE: /^(?<val>(\.){0,2}(\/(\w+|\.\.))+)/,
+        REFERENCE: /^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)/u,
     },
 
     parse: function (str: string): TSDElement {
@@ -44,7 +45,7 @@ export const TSDParser = {
                 value = elements;
 
                 if (tokens.splice(0, 1)[0].type != "BRACKET_CLOSE") {
-                    throw new SyntaxError("Unexpected Token: " + key.type + ".  Expected: BRACKET_CLOSE")
+                    throw new SyntaxError("Unexpected Token: " + tokens.splice(0, 1)[0].type + ".  Expected: BRACKET_CLOSE")
                 }
                 break;
             case "STRING":
@@ -71,7 +72,7 @@ export const TSDParser = {
             lastModified = new Date(Number(tokens.splice(0, 1)[0].groups.val))
         }
 
-        let newElement = new TSDElement(key.groups.val, value, key.groups.removed != undefined, lastModified);
+        let newElement = new TSDElement(key.groups.val.replace(/\\(.)/gu, "$1"), value, key.groups.removed != undefined, lastModified);
         if (reference) {
             newElement.setReference(reference);
             newElement.lastModified = lastModified
