@@ -35,7 +35,6 @@ export class TSDElement {
                 throw new Error("Reference element does not share the same root");
             }
             this.lastModified = new Date();
-            console.log(this.getRelativePath(v));
             this.setReference(this.getRelativePath(v));
             if (doesTriggerChangeEvent)
                 this.triggerChangeEvent();
@@ -70,6 +69,9 @@ export class TSDElement {
             return this._value.filter(e => !e.removed);
         }
         return this._value;
+    }
+    get v() {
+        return this.value;
     }
     addElement(element, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
@@ -170,6 +172,9 @@ export class TSDElement {
         }
         return currentElem;
     }
+    q(path) {
+        return this.query(path);
+    }
     query(path) {
         if (!/^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)$/u.test(path)) {
             throw new SyntaxError("Invalid path:" + path);
@@ -254,9 +259,11 @@ export class TSDElement {
      *
      * @returns Boolean which indicates if changes to this object were made
      */
-    merge(other) {
+    merge(other, debug = false, debugBit = 0) {
         // Only this timestamp
         if (this.lastModified != null && other.lastModified == null) {
+            if (debug)
+                this.lastModified.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 110 + debugBit);
             return false;
         }
         // Only other timestamp
@@ -264,25 +271,31 @@ export class TSDElement {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified;
+            if (debug)
+                this.lastModified.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 220 + debugBit);
             return true;
         }
         // Timestamps equal
-        if ((this.lastModified == null && other.lastModified == null) || this.lastModified.getTime() === other.lastModified.getTime()) {
+        if (this.lastModified?.getTime() === other.lastModified?.getTime()) {
             let changesMade = false;
             if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
-                other._value.forEach(element => {
+                for (const element of other._value) {
                     if (!this.getKeys().includes(element.key)) {
                         this.addElement(element, false);
                     }
                     else {
-                        changesMade = changesMade || (this.query(`./${element.key}`)?.merge(element) || false);
+                        changesMade = this.query(`./${element.key}`)?.merge(element, debug, debugBit) || changesMade;
                     }
-                });
+                }
             }
+            if (debug && changesMade)
+                this.lastModified?.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 330 + debugBit);
             return changesMade;
         }
         // This timestamp greater
         if (this.lastModified.getTime() > other.lastModified.getTime()) {
+            if (debug)
+                this.lastModified?.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 144);
             return false;
         }
         // Other timestamp greater
@@ -290,6 +303,8 @@ export class TSDElement {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified;
+            if (debug)
+                this.lastModified?.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 550 + debugBit);
             return true;
         }
         return false;

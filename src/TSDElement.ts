@@ -85,7 +85,13 @@ export class TSDElement {
         return this._value;
     }
 
-    public addElement(element: TSDElement, doesTriggerChangeEvent = true) { 
+    
+    public get v() : TSDElementValueType {
+        return this.value;
+    }
+    
+
+    public addElement(element: TSDElement, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
             if (!Object.keys(this._value as TSDElement[]).includes(element.key)) {  // TODO: replace if element with the same key is removed
                 element.parent = this;
@@ -185,6 +191,10 @@ export class TSDElement {
         return currentElem;
     }
 
+    public q(path: string): TSDElement | null { 
+        return this.query(path);
+    }
+
     public query(path: string): TSDElement | null {
         if (!/^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)$/u.test(path)) {
             throw new SyntaxError("Invalid path:" + path);
@@ -232,7 +242,7 @@ export class TSDElement {
         while (i < path.length && i < ownPath.length && path[i] === ownPath[i]) {
             i++;
         }
-        
+
         return ownPath.slice(i).map(() => "..").join("/") + "/" + path.slice(i).join("/")
     }
 
@@ -275,49 +285,54 @@ export class TSDElement {
      * 
      * @returns Boolean which indicates if changes to this object were made
      */
-    merge(other: TSDElement): boolean {
+    merge(other: TSDElement, debug = false, debugBit = 0): boolean {
         // Only this timestamp
         if (this.lastModified != null && other.lastModified == null) {
+            if(debug) this.lastModified.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+110+debugBit)
             return false;
         }
-
+        
         // Only other timestamp
         if (this.lastModified == null && other.lastModified != null) {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified
+            if(debug) this.lastModified.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+220+debugBit)
             return true;
         }
-
+        
         // Timestamps equal
-        if ((this.lastModified == null && other.lastModified == null) || (this.lastModified as Date).getTime() === (other.lastModified as Date).getTime()) {
+        if (this.lastModified?.getTime() === other.lastModified?.getTime()) {
             let changesMade = false;
             if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
-                (other._value as Array<TSDElement>).forEach(element => {
+                for (const element of other._value as TSDElement[]) {
                     if (!this.getKeys().includes(element.key)) {
                         this.addElement(element, false);
                     } else {
-                        changesMade = changesMade || (this.query(`./${element.key}`)?.merge(element) || false);
+                        changesMade = this.query(`./${element.key}`)?.merge(element,debug,debugBit) || changesMade;
                     }
-                });
+                }
             }
+            if(debug&&changesMade) this.lastModified?.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+330+debugBit)
             return changesMade;
         }
         // This timestamp greater
         if ((this.lastModified as Date).getTime() > (other.lastModified as Date).getTime()) {
+            if(debug) this.lastModified?.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+144)
             return false;
         }
         // Other timestamp greater
         if ((this.lastModified as Date).getTime() < (other.lastModified as Date).getTime()) {
             this.setValue(other._value, false);
             this._reference = other._reference;
-            this.lastModified = other.lastModified
+            this.lastModified = other.lastModified;
+            if(debug) this.lastModified?.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+550+debugBit)
             return true;
         }
         return false;
     }
 
-    toString(compact: boolean = false) {        
+    toString(compact: boolean = false) {
         let keyStr = this.key.replace(/[^\p{Alphabetic}\d-]/gu, "\\$&")
         let valueStr = "null";
         switch (this._value?.constructor) { // TODO: replace with this.getType()
