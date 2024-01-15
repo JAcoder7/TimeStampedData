@@ -58,9 +58,12 @@ export class TSDElement {
         if (doesTriggerChangeEvent)
             this.triggerChangeEvent();
     }
+    /**
+     * @returns {TSDElement | TSDElement[] | string | number | boolean | null}
+     */
     get value() {
         if (this._reference) {
-            let ref = this.query(this._reference)?.value;
+            let ref = this.query(this._reference);
             if (!ref)
                 console.error("Invalid reference:", this._reference);
             return ref || null;
@@ -70,8 +73,29 @@ export class TSDElement {
         }
         return this._value;
     }
+    /**
+     * @returns {TSDElement | TSDElement[] | string | number | boolean | null}
+     */
     get v() {
         return this.value;
+    }
+    /**
+     * @param val {TSDElement | TSDElement[] | string | number | boolean | null}
+     */
+    set v(val) {
+        this.value = val;
+    }
+    remove(doesTriggerChangeEvent = true) {
+        this.removed = true;
+        this.lastModified = new Date();
+        if (doesTriggerChangeEvent)
+            this.triggerChangeEvent();
+    }
+    unsetRemove(doesTriggerChangeEvent = true) {
+        this.removed = false;
+        this.lastModified = new Date();
+        if (doesTriggerChangeEvent)
+            this.triggerChangeEvent();
     }
     addElement(element, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
@@ -163,7 +187,7 @@ export class TSDElement {
     }
     /**
      *
-     * @returns The root of this element
+     * @returns {TSDElement} The root of this element
      */
     findRoot() {
         let currentElem = this;
@@ -172,9 +196,15 @@ export class TSDElement {
         }
         return currentElem;
     }
+    /**
+     * @returns {TSDElement | null}
+     */
     q(path) {
         return this.query(path);
     }
+    /**
+     * @returns {TSDElement | null}
+     */
     query(path) {
         if (!/^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)$/u.test(path)) {
             throw new SyntaxError("Invalid path:" + path);
@@ -240,9 +270,6 @@ export class TSDElement {
         }
         return currentPath;
     }
-    remove() {
-        this.removed = true;
-    }
     propagateChange() {
         if (this.parent?.onChange) {
             this.parent?.onChange();
@@ -257,7 +284,7 @@ export class TSDElement {
     }
     /**
      *
-     * @returns Boolean which indicates if changes to this object were made
+     * @returns {boolean} Boolean which indicates if changes to this object were made
      */
     merge(other, debug = false, debugBit = 0) {
         // Only this timestamp
@@ -271,6 +298,7 @@ export class TSDElement {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified;
+            this.removed = other.removed;
             if (debug)
                 this.lastModified.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 220 + debugBit);
             return true;
@@ -303,6 +331,7 @@ export class TSDElement {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified;
+            this.removed = other.removed;
             if (debug)
                 this.lastModified?.setTime(Math.floor(this.lastModified.getTime() / 1000) * 1000 + 550 + debugBit);
             return true;
@@ -314,7 +343,7 @@ export class TSDElement {
         let valueStr = "null";
         switch (this._value?.constructor) { // TODO: replace with this.getType()
             case "".constructor:
-                valueStr = `"${this._value}"`;
+                valueStr = `"${this._value.replaceAll('\"', '\\\"')}"`;
                 break;
             case [].constructor:
                 if (compact) {

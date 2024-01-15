@@ -34,7 +34,6 @@ export class TSDElement {
     }
 
 
-
     public set value(v: TSDElement | TSDElementValueType) {
         this.setValue(v);
     }
@@ -72,9 +71,12 @@ export class TSDElement {
         if (doesTriggerChangeEvent) this.triggerChangeEvent();
     }
 
-    public get value(): TSDElementValueType {
+    /**
+     * @returns {TSDElement | TSDElement[] | string | number | boolean | null}
+     */
+    public get value(): TSDElementValueType | TSDElement {
         if (this._reference) {
-            let ref = this.query(this._reference)?.value;
+            let ref = this.query(this._reference);
             if (!ref) console.error("Invalid reference:", this._reference);
 
             return ref || null;
@@ -85,11 +87,29 @@ export class TSDElement {
         return this._value;
     }
 
-    
-    public get v() : TSDElementValueType {
+    /**
+     * @returns {TSDElement | TSDElement[] | string | number | boolean | null}
+     */
+    public get v() : TSDElementValueType | TSDElement {
         return this.value;
     }
-    
+    /**
+     * @param val {TSDElement | TSDElement[] | string | number | boolean | null}
+     */
+    public set v(val: TSDElementValueType | TSDElement)   {
+         this.value=val;
+    }
+
+    remove(doesTriggerChangeEvent = true) {
+        this.removed = true;
+        this.lastModified = new Date();
+        if (doesTriggerChangeEvent) this.triggerChangeEvent();
+    }
+    unsetRemove(doesTriggerChangeEvent = true) {
+        this.removed = false;
+        this.lastModified = new Date();
+        if (doesTriggerChangeEvent) this.triggerChangeEvent();
+    }
 
     public addElement(element: TSDElement, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
@@ -181,7 +201,7 @@ export class TSDElement {
 
     /**
      * 
-     * @returns The root of this element
+     * @returns {TSDElement} The root of this element
      */
     public findRoot(): TSDElement {
         let currentElem: TSDElement | null = this;
@@ -191,10 +211,16 @@ export class TSDElement {
         return currentElem;
     }
 
+    /**
+     * @returns {TSDElement | null}
+     */
     public q(path: string): TSDElement | null { 
         return this.query(path);
     }
-
+    
+    /**
+     * @returns {TSDElement | null}
+     */
     public query(path: string): TSDElement | null {
         if (!/^(?<val>(\.){0,2}(\/(([\p{Alphabetic}\d-]|\\.)+|\.\.))+)$/u.test(path)) {
             throw new SyntaxError("Invalid path:" + path);
@@ -263,9 +289,7 @@ export class TSDElement {
         return currentPath;
     }
 
-    remove() {
-        this.removed = true;
-    }
+
 
     propagateChange() {
         if (this.parent?.onChange) {
@@ -283,7 +307,7 @@ export class TSDElement {
 
     /**
      * 
-     * @returns Boolean which indicates if changes to this object were made
+     * @returns {boolean} Boolean which indicates if changes to this object were made
      */
     merge(other: TSDElement, debug = false, debugBit = 0): boolean {
         // Only this timestamp
@@ -297,6 +321,7 @@ export class TSDElement {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified
+            this.removed = other.removed
             if(debug) this.lastModified.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+220+debugBit)
             return true;
         }
@@ -326,6 +351,7 @@ export class TSDElement {
             this.setValue(other._value, false);
             this._reference = other._reference;
             this.lastModified = other.lastModified;
+            this.removed = other.removed
             if(debug) this.lastModified?.setTime(Math.floor(this.lastModified.getTime()/1000)*1000+550+debugBit)
             return true;
         }
@@ -337,7 +363,7 @@ export class TSDElement {
         let valueStr = "null";
         switch (this._value?.constructor) { // TODO: replace with this.getType()
             case "".constructor:
-                valueStr = `"${this._value as string}"`;
+                valueStr = `"${(this._value as string).replaceAll('\"', '\\\"')}"`;
                 break;
             case [].constructor:
                 if (compact) {

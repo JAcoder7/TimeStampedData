@@ -7,7 +7,7 @@ export const TSDParser = {
         BRACKET_OPEN: /^{/,
         BRACKET_CLOSE: /^}/,
         COMMA: /^,/,
-        STRING: /^"(?<val>[^"]*)"/,
+        STRING: /^"(?<val>.*)(?<!\\)"/,
         NUMBER: /^(?<val>\d+(\.\d*)?)/,
         BOOLEAN: /^(?<val>true|false)/,
         NULL: /^null/,
@@ -49,7 +49,7 @@ export const TSDParser = {
                 }
                 break;
             case "STRING":
-                value = valToken.groups.val;
+                value = valToken.groups.val.replaceAll("\\\"","\"");
                 break;
             case "NUMBER":
                 value = Number(valToken.groups.val);
