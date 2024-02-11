@@ -1,7 +1,5 @@
 {
   "name": "tsd",
-  "module": "test",
-  "files": ["./src/ineex.js"],
   "main": "./src/index.js",
   "type": "module",
   "devDependencies": {
