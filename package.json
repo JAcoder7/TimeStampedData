@@ -1,6 +1,7 @@
 {
   "name": "timestampeddata",
   "main": "./src/index.js",
+  "module": "./src/index.js",
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest"
