@@ -48,17 +48,20 @@ export class TSDElement {
                     this._value.push(element);
                 }
             });
+            this._reference = null;
             this.lastModified = new Date();
             if (doesTriggerChangeEvent)
                 this.triggerChangeEvent();
             return;
         }
         this._value = v;
+        this._reference = null;
         this.lastModified = new Date();
         if (doesTriggerChangeEvent)
             this.triggerChangeEvent();
     }
     /**
+     * note: removed elements in collections are excluded
      * @returns {TSDElement | TSDElement[] | string | number | boolean | null}
      */
     get value() {
@@ -99,8 +102,11 @@ export class TSDElement {
     }
     addElement(element, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
-            if (!Object.keys(this._value).includes(element.key)) { // TODO: replace if element with the same key is removed
+            if (!this.getKeys().includes(element.key)) { // TODO: replace if element with the same key is removed
                 element.parent = this;
+                if (this._value.find(v => v.key == element.key)) {
+                    this._value.splice(this._value.findIndex(v => v.key == element.key), 1);
+                }
                 this._value.push(element);
                 if (doesTriggerChangeEvent)
                     this.triggerChangeEvent();
@@ -122,9 +128,14 @@ export class TSDElement {
                 this.triggerChangeEvent();
         }
     }
-    getKeys() {
+    getKeys(includeRemoved = false) {
         if (this.getType() == TSDType.collection) {
-            return this.value.map(e => e.key);
+            if (includeRemoved) {
+                return this._value.map(e => e.key);
+            }
+            else {
+                return this.value.map(e => e.key);
+            }
         }
         else {
             throw new Error("'getKeys()' is only available on a collection");
@@ -308,11 +319,11 @@ export class TSDElement {
             let changesMade = false;
             if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
                 for (const element of other._value) {
-                    if (!this.getKeys().includes(element.key)) {
+                    if (!this.getKeys(true).includes(element.key)) {
                         this.addElement(element, false);
                     }
                     else {
-                        changesMade = this.query(`./${element.key}`)?.merge(element, debug, debugBit) || changesMade;
+                        changesMade = this._value.find(e => e.key == element.key)?.merge(element, debug, debugBit) || changesMade;
                     }
                 }
             }

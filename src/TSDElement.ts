@@ -58,7 +58,8 @@ export class TSDElement {
                     (this._value as Array<TSDElement>).push(element);
                 }
             });
-
+            
+            this._reference = null;
             this.lastModified = new Date();
             if (doesTriggerChangeEvent) this.triggerChangeEvent();
 
@@ -66,12 +67,14 @@ export class TSDElement {
         }
 
         this._value = v as TSDElementValueType;
+        this._reference = null;
         this.lastModified = new Date();
 
         if (doesTriggerChangeEvent) this.triggerChangeEvent();
     }
 
     /**
+     * note: removed elements in collections are excluded
      * @returns {TSDElement | TSDElement[] | string | number | boolean | null}
      */
     public get value(): TSDElementValueType | TSDElement {
@@ -113,8 +116,11 @@ export class TSDElement {
 
     public addElement(element: TSDElement, doesTriggerChangeEvent = true) {
         if (this.getType() == TSDType.collection) {
-            if (!Object.keys(this._value as TSDElement[]).includes(element.key)) {  // TODO: replace if element with the same key is removed
+            if (!this.getKeys().includes(element.key)) {  // TODO: replace if element with the same key is removed
                 element.parent = this;
+                if ((this._value as TSDElement[]).find(v=>v.key==element.key)) {
+                    (this._value as TSDElement[]).splice((this._value as TSDElement[]).findIndex(v=>v.key==element.key), 1)
+                }
                 (this._value as TSDElement[]).push(element);
                 if (doesTriggerChangeEvent) this.triggerChangeEvent();
             } else {
@@ -134,9 +140,13 @@ export class TSDElement {
         }
     }
 
-    public getKeys(): Array<string> {
+    public getKeys(includeRemoved = false): Array<string> {
         if (this.getType() == TSDType.collection) {
-            return (this.value as Array<TSDElement>).map(e => e.key)
+            if (includeRemoved) {
+                return (this._value as Array<TSDElement>).map(e => e.key)
+            } else {
+                return (this.value as Array<TSDElement>).map(e => e.key)
+            }
         } else {
             throw new Error("'getKeys()' is only available on a collection");
         }
@@ -331,10 +341,10 @@ export class TSDElement {
             let changesMade = false;
             if (this.getType() == TSDType.collection && other.getType() == TSDType.collection) {
                 for (const element of other._value as TSDElement[]) {
-                    if (!this.getKeys().includes(element.key)) {
+                    if (!this.getKeys(true).includes(element.key)) {
                         this.addElement(element, false);
                     } else {
-                        changesMade = this.query(`./${element.key}`)?.merge(element,debug,debugBit) || changesMade;
+                        changesMade = (this._value as TSDElement[]).find(e=>e.key==element.key)?.merge(element, debug, debugBit) || changesMade;
                     }
                 }
             }

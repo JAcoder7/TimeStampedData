@@ -7,7 +7,7 @@ export const TSDParser = {
         BRACKET_OPEN: /^{/,
         BRACKET_CLOSE: /^}/,
         COMMA: /^,/,
-        STRING: /^"(?<val>.*)(?<!\\)"/,
+        STRING: /^"(?<val>.*?)(?<!\\)"/,
         NUMBER: /^(?<val>\d+(\.\d*)?)/,
         BOOLEAN: /^(?<val>true|false)/,
         NULL: /^null/,
