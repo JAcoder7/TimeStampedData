@@ -1,5 +1,5 @@
 {
-  "name": "tsd",
+  "name": "timestampeddata",
   "main": "./src/index.js",
   "type": "module",
   "devDependencies": {
