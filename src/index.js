@@ -40,26 +40,17 @@ const MapValue = {
 
 export class TMap {
 
-  // [key: string, [value, timestamp: Date, removed: bool?, isReference?]]
 
   // [key: string, [value, timestamp: Date, type: number?]]
 
-  /* 
-  enum value {
-    value(string | number | boolean | null),
-    removed,
-    reference(string)
-  }
+  // Type: Value
+  // [key: string, [value, timestamp: Date, 0]]
 
-  struct v {
-    value: value,
-    timestamp: Date
-  }
+  // Type: Reference
+  // [key: string, [path: string, timestamp: Date, 1]]
 
-  map {
-
-  }
-  */
+  // Type: Removed
+  // [key: string, [null, timestamp: Date, 2]]
 
   /** @private @type { Map<string, [Tvalue, Date, number]>} */
   map = new Map();
@@ -91,6 +82,10 @@ export class TMap {
         // TODO: set parent etc...
         break;
 
+      case (typeof value == "object" && value instanceof Reference):
+        this.map.set(String(key), MapValue.Reference(value))
+        return this;
+
       default:
         throw new TypeError()
     }
@@ -110,9 +105,7 @@ export class TMap {
         return entry[0]
 
       case ValueTypes.Reference:
-        // TODO:
-        throw new Error("Not implemented");
-
+        return new Reference(this, String(entry[0]))
       case ValueTypes.Removed:
         if (includeRemoved) {
           return entry[0]
@@ -194,7 +187,7 @@ export class TMap {
 
   /** 
    * @param {string} path 
-   * @returns {Tvalue | null}
+   * @returns {Tvalue | undefined}
    */
   query(path) {
     if (path == "") {
@@ -206,10 +199,10 @@ export class TMap {
       case "":
         return this.root.query(segments.slice(1).join("/"))
       case "..":
-        return this.parent?.query(segments.slice(1).join("/")) || null
+        return this.parent?.query(segments.slice(1).join("/")) || undefined
       default:
         let result = this.getEntry(segments[0])
-        if (result == undefined) return null
+        if (result == undefined) return undefined
 
         if (result && typeof result[0] == "object" && result[0] instanceof TMap) {
           return result[0].query(segments.slice(1).join("/"))
@@ -219,7 +212,7 @@ export class TMap {
           throw Error()
         }
         if (segments.length > 1) {
-          return null
+          return undefined
         }
         return result[0]
     }
@@ -229,8 +222,27 @@ export class TMap {
    * @returns {TMap}
    */
   get root() {
-    return this.parent || this
+    /** @type {TMap} */
+    let currentElem = this;
+    while (currentElem.parent != null) {
+      currentElem = currentElem.parent;
+    }
+    return currentElem;
   }
+
+  getPath() {
+    if (this.parent == null) {
+        return "/"
+    }
+    let currentPath = "";
+    /** @type {TMap} */
+    let currentElem = this;
+    while (currentElem.parent != null) {
+        currentPath = "/" + currentElem.key.replace(/[^\p{Alphabetic}\d-]/gu, "\\$&") + currentPath;
+        currentElem = currentElem.parent;
+    }
+    return currentPath;
+}
 
   toFormattedString() {
     // FIXME:
@@ -321,26 +333,38 @@ export class TMap {
   }
 }
 
-class Path {
+class Reference {
   path = "";
   /** @type {TMap} */
   map;
 
   /** 
-   * @param  {...string} keys 
    * @param {TMap} map 
+   * @param  {string} path
   */
-  constructor(map, ...keys) {
-    if (arguments.length >= 2 && map instanceof TMap && typeof keys[0] == "string") {
+  constructor(map, path) {
+    if (arguments.length == 2 && map instanceof TMap && typeof path == "string") {
       this.map = map
-      this.path = keys.map(k => String(k).replace(/\//g, "\\/")).join("/")
+      this.path = path
     } else {
       throw new TypeError("Invalid arguments")
     }
   }
 
-  /** @param {TMap} map */
-  eval(map) {
+  /** 
+   * @param  {...string} keys 
+   * @param {TMap} map 
+  */
+  static fromKeys(map, ...keys) {
+    if (arguments.length >= 2 && map instanceof TMap && typeof keys[0] == "string") {
+      let path = keys.map(k => String(k).replace(/\//g, "\\/")).join("/")
+      new Reference(map, path)
+    } else {
+      throw new TypeError("Invalid arguments")
+    }
+  }
 
+  eval() {
+    return this.map.query(this.path)
   }
 }
